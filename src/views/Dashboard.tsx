@@ -170,16 +170,16 @@ export default function Dashboard() {
                             alert('Incorrect PIN');
                             setPasswordInput('');
                         }
-                    }} className="w-full flex gap-3">
+                    }} className="w-full flex flex-col gap-4">
                         <input
                             type="password"
                             value={passwordInput}
                             onChange={(e) => setPasswordInput(e.target.value)}
-                            className="glass-input flex-1 text-center text-xl tracking-widest"
+                            className="glass-input w-full text-center text-xl tracking-widest py-3"
                             placeholder="••••"
                             autoFocus
                         />
-                        <button type="submit" className="px-6 rounded-xl bg-indigo-500/20 text-indigo-400 font-bold hover:bg-indigo-500/30 transition-colors border border-indigo-500/20 hover:border-indigo-500/40">
+                        <button type="submit" className="w-full py-3 rounded-xl bg-indigo-500/20 text-indigo-400 font-bold hover:bg-indigo-500/30 transition-colors border border-indigo-500/20 hover:border-indigo-500/40">
                             Enter
                         </button>
                     </form>

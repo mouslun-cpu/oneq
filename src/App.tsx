@@ -21,9 +21,9 @@ function App() {
 
         {/* Footer */}
         <div className="fixed bottom-2 right-4 text-[10px] md:text-xs text-slate-500/50 z-50 pointer-events-none font-sans text-right">
-          版權: © Dr. Huang Wei Lun<br className="md:hidden" />
+          © Dr. Huang Wei Lun<br className="md:hidden" />
           <span className="hidden md:inline"> | </span>
-          版本: 26.1.1
+          v26.1.2
         </div>
       </div>
     </Router>

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as d3 from 'd3-force';
 import { db } from '../lib/firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 
 interface Particle extends d3.SimulationNodeDatum {
     id: string;
@@ -14,9 +14,10 @@ interface ParticleCanvasProps {
     questionId: string;
     options: { id: string; text: string }[];
     colors: string[];
+    lastResetAt?: number;
 }
 
-export default function ParticleCanvas({ questionId, options, colors }: ParticleCanvasProps) {
+export default function ParticleCanvas({ questionId, options, colors, lastResetAt }: ParticleCanvasProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -87,7 +88,10 @@ export default function ParticleCanvas({ questionId, options, colors }: Particle
 
         simulation.on('tick', render);
 
-        const streamRef = collection(db, 'streams', questionId, 'events');
+        const streamRef = query(
+            collection(db, 'streams', questionId, 'events'),
+            where('timestamp', '>=', lastResetAt || 0)
+        );
         const unsubscribe = onSnapshot(streamRef, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added') {
@@ -128,7 +132,7 @@ export default function ParticleCanvas({ questionId, options, colors }: Particle
             simulation.stop();
             unsubscribe();
         };
-    }, [questionId, options, colors]);
+    }, [questionId, options, colors, lastResetAt]);
 
     return (
         <canvas

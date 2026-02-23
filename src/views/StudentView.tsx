@@ -24,7 +24,20 @@ export default function StudentView() {
                 const qRef = doc(db, 'questions', questionId);
                 const unsubscribe = onSnapshot(qRef, (snapshot) => {
                     if (snapshot.exists()) {
-                        setQuestion(snapshot.data());
+                        const data = snapshot.data();
+
+                        // Check for reset
+                        if (data.lastResetAt) {
+                            const localReset = localStorage.getItem(`oneq_reset_${questionId}`);
+                            if (localReset !== data.lastResetAt.toString()) {
+                                // A reset happened!
+                                localStorage.removeItem(`oneq_vote_${questionId}`);
+                                localStorage.setItem(`oneq_reset_${questionId}`, data.lastResetAt.toString());
+                                setVotedId(null); // Clear local vote state
+                            }
+                        }
+
+                        setQuestion(data);
                     } else {
                         setQuestion(null);
                     }
@@ -80,6 +93,9 @@ export default function StudentView() {
 
             // 3. Mark locally
             localStorage.setItem(`oneq_vote_${questionId}`, optionId);
+            if (question?.lastResetAt) {
+                localStorage.setItem(`oneq_reset_${questionId}`, question.lastResetAt.toString());
+            }
             setVotedId(optionId);
         } catch (err) {
             console.error('Vote failed', err);

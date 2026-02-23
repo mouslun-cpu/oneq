@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { db, ensureAuth } from '../lib/firebase';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
-import { Lock, Unlock, Users, Home, Copy, Check } from 'lucide-react';
+import { Lock, Unlock, Users, Home, Copy, Check, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ParticleCanvas from '../components/ParticleCanvas';
 import { cn } from '../lib/utils';
@@ -56,6 +56,26 @@ export default function PresentationView() {
         await ensureAuth();
         const newStatus = question.status === 'active' ? 'ended' : 'active';
         await updateDoc(doc(db, 'questions', questionId), { status: newStatus });
+    };
+
+    const handleResetVoting = async () => {
+        if (!confirm("Are you sure you want to reset all votes for this question? This cannot be undone.")) return;
+        if (!questionId || !question) return;
+
+        await ensureAuth();
+
+        // 1. Reset Stats
+        const initialStats: Record<string, number> = {};
+        question.options.forEach((o: any) => initialStats[o.id] = 0);
+        await updateDoc(doc(db, 'stats', questionId), {
+            counts: initialStats,
+            total: 0
+        });
+
+        // 2. Update Question lastResetAt
+        await updateDoc(doc(db, 'questions', questionId), {
+            lastResetAt: Date.now()
+        });
     };
 
     if (!question) return <div className="min-h-screen flex items-center justify-center"><div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>;
@@ -123,7 +143,13 @@ export default function PresentationView() {
                     </div>
                 </div>
 
-                <div className="mt-auto">
+                <div className="mt-auto flex flex-col gap-3">
+                    <button
+                        onClick={handleResetVoting}
+                        className="w-full py-4 rounded-2xl flex items-center justify-center gap-3 font-bold text-lg transition-all shadow-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/30 hover:scale-[1.02]"
+                    >
+                        <RefreshCw size={24} /> Reset Voting
+                    </button>
                     <button
                         onClick={toggleStatus}
                         className={cn(
@@ -148,11 +174,11 @@ export default function PresentationView() {
                     {question.title}
                 </h1>
 
-                <ParticleCanvas options={question.options} questionId={questionId!} colors={COLORS} />
+                <ParticleCanvas options={question.options} questionId={questionId!} colors={COLORS} lastResetAt={question.lastResetAt} />
 
                 {/* Floating Percentage Cards */}
                 <div className="flex-1 relative z-20 flex items-end pb-8">
-                    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full mt-auto">
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 w-full mt-auto">
                         {question.options.map((opt: any, idx: number) => {
                             const count = stats.counts?.[opt.id] || 0;
                             const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
