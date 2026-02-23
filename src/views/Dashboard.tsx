@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { database, ensureAuth } from '../lib/firebase';
-import { ref, set, get, update } from 'firebase/database';
-import { Plus, Trash2, Play, Edit3, History, Save } from 'lucide-react';
+import { db, ensureAuth } from '../lib/firebase';
+import { doc, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { Plus, Trash2, Play, Edit3, History, Save, Lock } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const generateId = () => Math.random().toString(36).substring(2, 8);
 
 export default function Dashboard() {
+    const [isAuthenticated, setIsAuthenticated] = useState(() => sessionStorage.getItem('oneq_admin_auth') === '1004');
+    const [passwordInput, setPasswordInput] = useState('');
     const [title, setTitle] = useState('');
     const [options, setOptions] = useState([{ id: generateId(), text: '' }, { id: generateId(), text: '' }]);
     const [loading, setLoading] = useState(false);
@@ -24,9 +26,9 @@ export default function Dashboard() {
                 const qList = [];
                 // Fetch in reverse order (newest first)
                 for (let i = ids.length - 1; i >= 0; i--) {
-                    const snap = await get(ref(database, `questions/${ids[i]}`));
+                    const snap = await getDoc(doc(db, 'questions', ids[i]));
                     if (snap.exists()) {
-                        qList.push({ id: ids[i], ...snap.val() });
+                        qList.push({ id: ids[i], ...snap.data() });
                     }
                 }
                 setMyQuestions(qList);
@@ -60,9 +62,9 @@ export default function Dashboard() {
             await ensureAuth();
 
             // Remove from Firebase (both question and stats)
-            await set(ref(database, `questions/${id}`), null);
-            await set(ref(database, `stats/${id}`), null);
-            await set(ref(database, `stream/${id}`), null);
+            await deleteDoc(doc(db, 'questions', id));
+            await deleteDoc(doc(db, 'stats', id));
+            await deleteDoc(doc(db, 'streams', id));
 
             // Remove from local storage history
             const ids: string[] = JSON.parse(localStorage.getItem('oneq_my_questions') || '[]');
@@ -110,14 +112,14 @@ export default function Dashboard() {
 
             if (editingId) {
                 // Update existing
-                await update(ref(database, `questions/${questionId}`), {
+                await updateDoc(doc(db, 'questions', questionId), {
                     title,
                     options,
                     // keep status and createdAt intact
                 });
             } else {
                 // Create new
-                await set(ref(database, `questions/${questionId}`), {
+                await setDoc(doc(db, 'questions', questionId), {
                     title,
                     options,
                     status: 'active',
@@ -127,7 +129,7 @@ export default function Dashboard() {
                 // Initialize stats
                 const initialStats: Record<string, number> = {};
                 options.forEach(o => initialStats[o.id] = 0);
-                await set(ref(database, `stats/${questionId}`), {
+                await setDoc(doc(db, 'stats', questionId), {
                     counts: initialStats,
                     total: 0
                 });
@@ -148,6 +150,43 @@ export default function Dashboard() {
             setLoading(false);
         }
     };
+
+    if (!isAuthenticated) {
+        return (
+            <div className="flex min-h-screen items-center justify-center p-6 bg-transparent relative z-10">
+                <div className="glass-panel p-10 max-w-sm w-full text-center flex flex-col items-center animate-slide-up">
+                    <div className="w-16 h-16 bg-slate-800/80 rounded-full flex items-center justify-center mb-6 shadow-inner border border-white/5 text-slate-400">
+                        <Lock size={32} />
+                    </div>
+                    <h1 className="text-3xl font-black text-slate-200 mb-2">Teacher Login</h1>
+                    <p className="text-slate-500 mb-8 text-sm">Please enter the security PIN to access the dashboard.</p>
+
+                    <form onSubmit={(e) => {
+                        e.preventDefault();
+                        if (passwordInput === '1004') {
+                            sessionStorage.setItem('oneq_admin_auth', '1004');
+                            setIsAuthenticated(true);
+                        } else {
+                            alert('Incorrect PIN');
+                            setPasswordInput('');
+                        }
+                    }} className="w-full flex gap-3">
+                        <input
+                            type="password"
+                            value={passwordInput}
+                            onChange={(e) => setPasswordInput(e.target.value)}
+                            className="glass-input flex-1 text-center text-xl tracking-widest"
+                            placeholder="••••"
+                            autoFocus
+                        />
+                        <button type="submit" className="px-6 rounded-xl bg-indigo-500/20 text-indigo-400 font-bold hover:bg-indigo-500/30 transition-colors border border-indigo-500/20 hover:border-indigo-500/40">
+                            Enter
+                        </button>
+                    </form>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex min-h-screen items-center justify-center p-6 bg-transparent">

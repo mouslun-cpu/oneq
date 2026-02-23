@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as d3 from 'd3-force';
-import { database } from '../lib/firebase';
-import { ref, onChildAdded, DataSnapshot } from 'firebase/database';
+import { db } from '../lib/firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
 
 interface Particle extends d3.SimulationNodeDatum {
     id: string;
@@ -87,36 +87,40 @@ export default function ParticleCanvas({ questionId, options, colors }: Particle
 
         simulation.on('tick', render);
 
-        const streamRef = ref(database, `stream/${questionId}`);
-        const unsubscribe = onChildAdded(streamRef, (snapshot: DataSnapshot) => {
-            const data = snapshot.val();
-            if (!data) return;
+        const streamRef = collection(db, 'streams', questionId, 'events');
+        const unsubscribe = onSnapshot(streamRef, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === 'added') {
+                    const data = change.doc.data();
+                    if (!data) return;
 
-            const idx = options.findIndex(o => o.id === data.optionId);
-            const color = colors[idx % colors.length] || '#ffffff';
+                    const idx = options.findIndex(o => o.id === data.optionId);
+                    const color = colors[idx % colors.length] || '#ffffff';
 
-            // Spawn randomly off-screen
-            const edge = Math.floor(Math.random() * 4);
-            let startX = 0, startY = 0;
-            if (edge === 0) { startX = Math.random() * width; startY = -100; }
-            else if (edge === 1) { startX = width + 100; startY = Math.random() * height; }
-            else if (edge === 2) { startX = Math.random() * width; startY = height + 100; }
-            else { startX = -100; startY = Math.random() * height; }
+                    // Spawn randomly off-screen
+                    const edge = Math.floor(Math.random() * 4);
+                    let startX = 0, startY = 0;
+                    if (edge === 0) { startX = Math.random() * width; startY = -100; }
+                    else if (edge === 1) { startX = width + 100; startY = Math.random() * height; }
+                    else if (edge === 2) { startX = Math.random() * width; startY = height + 100; }
+                    else { startX = -100; startY = Math.random() * height; }
 
-            const newNode: Particle = {
-                id: snapshot.key as string,
-                optionId: data.optionId,
-                color,
-                x: startX,
-                y: startY,
-                vx: (Math.random() - 0.5) * 50,
-                vy: (Math.random() - 0.5) * 50,
-                r: Math.random() * 4 + 8 // 8-12px size
-            };
+                    const newNode: Particle = {
+                        id: change.doc.id,
+                        optionId: data.optionId,
+                        color,
+                        x: startX,
+                        y: startY,
+                        vx: (Math.random() - 0.5) * 50,
+                        vy: (Math.random() - 0.5) * 50,
+                        r: Math.random() * 4 + 8 // 8-12px size
+                    };
 
-            nodes.push(newNode);
-            simulation.nodes(nodes);
-            simulation.alpha(0.8).restart();
+                    nodes.push(newNode);
+                    simulation.nodes(nodes);
+                    simulation.alpha(0.8).restart();
+                }
+            });
         });
 
         return () => {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { database, ensureAuth } from '../lib/firebase';
-import { ref, onValue, runTransaction, set } from 'firebase/database';
+import { db, ensureAuth } from '../lib/firebase';
+import { doc, onSnapshot, setDoc, runTransaction } from 'firebase/firestore';
 import { CheckCircle } from 'lucide-react';
 
 export default function StudentView() {
@@ -21,16 +21,16 @@ export default function StudentView() {
         const setup = async () => {
             try {
                 await ensureAuth();
-                const qRef = ref(database, `questions/${questionId}`);
-                const unsubscribe = onValue(qRef, (snapshot) => {
+                const qRef = doc(db, 'questions', questionId);
+                const unsubscribe = onSnapshot(qRef, (snapshot) => {
                     if (snapshot.exists()) {
-                        setQuestion(snapshot.val());
+                        setQuestion(snapshot.data());
                     } else {
                         setQuestion(null);
                     }
                     setLoading(false);
                 }, (error) => {
-                    console.error("Firebase read error:", error);
+                    console.error("Firestore read error:", error);
                     setLoading(false);
                 });
                 return unsubscribe;
@@ -55,22 +55,25 @@ export default function StudentView() {
         try {
             await ensureAuth();
             // 1. Transaction to gracefully increment count
-            const statsRef = ref(database, `stats/${questionId}`);
-            await runTransaction(statsRef, (currentData) => {
-                if (currentData) {
-                    if (!currentData.counts) currentData.counts = {};
-                    currentData.counts[optionId] = (currentData.counts[optionId] || 0) + 1;
-                    currentData.total = (currentData.total || 0) + 1;
-                }
-                return currentData;
+            const statsRef = doc(db, 'stats', questionId);
+            await runTransaction(db, async (transaction) => {
+                const sfDoc = await transaction.get(statsRef);
+                if (!sfDoc.exists()) throw "Document does not exist!";
+
+                const currentData = sfDoc.data() as any;
+                if (!currentData.counts) currentData.counts = {};
+                currentData.counts[optionId] = (currentData.counts[optionId] || 0) + 1;
+                currentData.total = (currentData.total || 0) + 1;
+
+                transaction.update(statsRef, currentData);
             });
 
             // 2. Log answer anonymously to trigger specific D3 node animation per-user (optional but helpful)
             const userId = localStorage.getItem('oneq_uid') || Math.random().toString(36).substring(2, 12);
             localStorage.setItem('oneq_uid', userId);
             // We push a unique event entry into 'streams' for the particle animation engine to easily catch
-            const eventRef = ref(database, `stream/${questionId}/${userId}`);
-            await set(eventRef, {
+            const eventRef = doc(db, 'streams', questionId, 'events', userId);
+            await setDoc(eventRef, {
                 optionId,
                 timestamp: Date.now()
             });
