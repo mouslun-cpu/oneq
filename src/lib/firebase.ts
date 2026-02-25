@@ -20,7 +20,8 @@ export const auth = getAuth(app);
 
 export const ensureAuth = async () => {
   if (!auth.currentUser) {
-    await signInAnonymously(auth);
+    const credential = await signInAnonymously(auth);
+    return credential.user;
   }
   return auth.currentUser;
 };

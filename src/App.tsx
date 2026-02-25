@@ -1,6 +1,7 @@
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import Dashboard from './views/Dashboard';
-import PresentationView from './views/PresentationView';
+import CourseView from './views/CourseView';
+import ClassroomView from './views/ClassroomView';
 import StudentView from './views/StudentView';
 
 function App() {
@@ -14,7 +15,8 @@ function App() {
         <main className="relative z-10 w-full h-full min-h-screen">
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/present/:questionId" element={<PresentationView />} />
+            <Route path="/course/:courseId" element={<CourseView />} />
+            <Route path="/classroom/:classroomId" element={<ClassroomView />} />
             <Route path="/q/:questionId" element={<StudentView />} />
           </Routes>
         </main>
@@ -23,7 +25,7 @@ function App() {
         <div className="fixed bottom-2 right-4 text-[10px] md:text-xs text-slate-500/50 z-50 pointer-events-none font-sans text-right">
           © Dr. Huang Wei Lun<br className="md:hidden" />
           <span className="hidden md:inline"> | </span>
-          v26.1.2
+          v26.1.0
         </div>
       </div>
     </Router>

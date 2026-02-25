@@ -59,19 +59,19 @@ export default function ParticleCanvas({ questionId, options, colors, lastResetA
 
         const simulation = d3.forceSimulation<Particle>(nodes)
             .alphaDecay(0.005) // Let it gently move for a long time
-            .velocityDecay(0.18) // higher friction so bubbles don't bounce out of cards
-            // Optimized collision radius multiplier so a 50-item cluster fits perfectly in the card space
-            .force('collide', d3.forceCollide<Particle>().radius(d => d.r * 1.8 + 2).iterations(4))
-            .force('x', d3.forceX<Particle>().x(d => getClusterCenter(d.optionId).x).strength(0.2))
-            .force('y', d3.forceY<Particle>().y(d => getClusterCenter(d.optionId).y).strength(0.2));
+            .velocityDecay(0.25) // higher friction so bubbles stay within cards
+            // Tighter collision so ~80 dots can pack into each answer card zone
+            .force('collide', d3.forceCollide<Particle>().radius(d => d.r * 1.4 + 1).iterations(5))
+            .force('x', d3.forceX<Particle>().x(d => getClusterCenter(d.optionId).x).strength(0.35))
+            .force('y', d3.forceY<Particle>().y(d => getClusterCenter(d.optionId).y).strength(0.35));
 
         const render = () => {
             if (!ctx) return;
             ctx.clearRect(0, 0, width, height);
 
             // Dynamically update forces continuously in case the window resizes or layout shifts
-            simulation.force('x', d3.forceX<Particle>().x(d => getClusterCenter(d.optionId).x).strength(0.1));
-            simulation.force('y', d3.forceY<Particle>().y(d => getClusterCenter(d.optionId).y).strength(0.1));
+            simulation.force('x', d3.forceX<Particle>().x(d => getClusterCenter(d.optionId).x).strength(0.3));
+            simulation.force('y', d3.forceY<Particle>().y(d => getClusterCenter(d.optionId).y).strength(0.3));
 
             for (const node of nodes) {
                 if (node.x === undefined || node.y === undefined) continue;
@@ -117,7 +117,7 @@ export default function ParticleCanvas({ questionId, options, colors, lastResetA
                         y: startY,
                         vx: (Math.random() - 0.5) * 50,
                         vy: (Math.random() - 0.5) * 50,
-                        r: Math.random() * 4 + 8 // 8-12px size
+                        r: Math.random() * 3 + 5 // 5-8px size - fits ~80 per card zone
                     };
 
                     nodes.push(newNode);
